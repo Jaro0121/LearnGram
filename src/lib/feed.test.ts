@@ -34,13 +34,13 @@ describe('feed builder', () => {
   it('respects a category filter and hidden cards', () => {
     const s = base({ hidden: { ge1: now } });
     const items = buildBatch(s, [], 'geography', 20, now, rnd);
-    expect(items.length).toBe(9);
+    expect(items.length).toBe(19);
     expect(items.every((it) => it.kind === 'fact' && it.fact.cat === 'geography' && it.fact.id !== 'ge1')).toBe(true);
   });
 
   it('recycles the oldest cards once everything was seen', () => {
     const seen: Record<string, number> = {};
-    for (let i = 1; i <= 10; i++) seen[`ge${i}`] = now - i * 1000;
+    for (let i = 1; i <= 20; i++) seen[`ge${i}`] = now - i * 1000;
     const items = buildBatch(base({ seen }), [], 'geography', 3, now, rnd);
     expect(items.length).toBe(3);
   });
@@ -60,7 +60,16 @@ describe('live content parsers', () => {
   });
 
   it('decodes Open Trivia DB questions with the correct answer first', () => {
-    const json = { results: [{ type: 'multiple', question: 'What%20is%202%2B2%3F', correct_answer: '4', incorrect_answers: ['3', '5', '22'] }, { type: 'boolean', question: 'x', correct_answer: 'True', incorrect_answers: ['False'] }] };
+    const json = { response_code: 0, results: [{ type: 'multiple', question: 'What%20is%202%2B2%3F', correct_answer: '4', incorrect_answers: ['3', '5', '22'] }, { type: 'boolean', question: 'x', correct_answer: 'True', incorrect_answers: ['False'] }] };
     expect(parseTrivia(json, 'math')).toEqual([{ id: 't:What is 2+2?', cat: 'math', q: 'What is 2+2?', options: ['4', '3', '5', '22'] }]);
+    expect(parseTrivia({ response_code: 5, results: json.results }, 'math')).toEqual([]);
+  });
+});
+
+describe('live content filtering', () => {
+  it('drops list, outline and disambiguation pages', () => {
+    const page = (pageid: number, title: string) => ({ pageid, index: pageid, title, extract: 'A long enough extract about something interesting that clearly passes the length filter. '.repeat(2) });
+    const json = { query: { pages: [page(1, 'Outline of Venus'), page(2, 'List of craters'), page(3, 'Mercury (disambiguation)'), page(4, 'Atmosphere of Venus')] } };
+    expect(parseWiki(json, 'space', []).map((f) => f.title)).toEqual(['Atmosphere of Venus']);
   });
 });

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LearnGram</string>
+    <string name="title_activity_main">LearnGram</string>
+    <string name="package_name">io.github.jaro0121.learngram</string>
+    <string name="custom_url_scheme">io.github.jaro0121.learngram</string>
+</resources>

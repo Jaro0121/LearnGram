@@ -2,8 +2,11 @@
   --bg: #0b0b12; --panel: #16161f; --panel2: #1f1f2b; --line: #2a2a3a;
   --text: #f4f4f8; --muted: #9a9ab0; --accent: #8b7bff; --like: #ff3b6b; --save: #ffc94d;
   --ok: #37d67a; --bad: #ff5c5c;
-  --nav: calc(58px + env(safe-area-inset-bottom, 0px));
-  --top: env(safe-area-inset-top, 0px);
+  /* Android app: Capacitor injects --safe-area-inset-*; browsers use env(). */
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --nav: calc(58px + var(--sab));
+  --top: var(--sat);
   color-scheme: dark;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -24,7 +27,7 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .screen.scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 
 /* ── bottom nav ── */
-.nav { position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav); padding-bottom: env(safe-area-inset-bottom, 0px);
+.nav { position: absolute; left: 0; right: 0; bottom: 0; height: var(--nav); padding-bottom: var(--sab);
   display: flex; background: #08080d; border-top: 1px solid var(--line); z-index: 20; }
 .nav button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   color: var(--muted); font-size: 11px; position: relative; }
@@ -166,7 +169,7 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .run-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-weight: 600; }
 
 /* ── onboarding ── */
-.onb { height: 100%; display: flex; flex-direction: column; padding: calc(var(--top) + 16px) 18px calc(env(safe-area-inset-bottom, 0px) + 16px);
+.onb { height: 100%; display: flex; flex-direction: column; padding: calc(var(--top) + 16px) 18px calc(var(--sab) + 16px);
   background: radial-gradient(120% 60% at 50% 0%, #2a1f5c 0%, var(--bg) 70%); }
 .onb-dots { display: flex; gap: 6px; margin-bottom: 22px; }
 .onb-dots i { flex: 1; height: 4px; border-radius: 2px; background: #ffffff26; transition: background .3s; }
@@ -191,3 +194,5 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 @media (min-width: 481px) { .app { border-left: 1px solid var(--line); border-right: 1px solid var(--line); } }
 @media (max-height: 640px) { .card-emoji { top: 9%; font-size: 110px; } .card p { font-size: 15.5px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+.item-acts .link { color: var(--accent); text-decoration: none; }
+.about .btn { margin-top: 12px; }

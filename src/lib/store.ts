@@ -60,6 +60,27 @@ export function update(fn: (s: State) => void): void {
   subs.forEach((f) => f());
 }
 
+/** Backup file contents (JSON). */
+export function exportBackup(): string {
+  return JSON.stringify({ app: 'LearnGram', exported: new Date().toISOString(), state }, null, 1);
+}
+
+/** Restores a backup. Throws with a readable message if the file is not a LearnGram backup. */
+export function importBackup(text: string): void {
+  let data: any;
+  try { data = JSON.parse(text); } catch { throw new Error('That file is not a LearnGram backup.'); }
+  const st = data?.app === 'LearnGram' ? data.state : null;
+  if (!st || st.v !== 1 || typeof st.seen !== 'object' || typeof st.mem !== 'object' || !Array.isArray(st.interests)) {
+    throw new Error('That file is not a LearnGram backup.');
+  }
+  update((s) => { Object.assign(s, fresh(), st); });
+}
+
+/** Ask the browser not to evict our data under storage pressure (best effort). */
+export function requestPersistence(): void {
+  try { void navigator.storage?.persist?.(); } catch { /* unsupported */ }
+}
+
 export function resetAll(): void {
   state = fresh();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }

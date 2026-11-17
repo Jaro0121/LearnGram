@@ -1,0 +1,77 @@
+name: Android app
+
+# Builds the Android app on every push to main (download it from the run's "Artifacts"),
+# and attaches the APK/AAB to a GitHub Release when you publish one.
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx cap sync android
+
+      - name: Restore signing key
+        if: env.HAS_KEY == 'true'
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ env.HAS_KEY == 'true' && format('{0}/release.jks', runner.temp) || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ "$HAS_KEY" = "true" ]; then
+            ./gradlew --no-daemon assembleRelease bundleRelease
+          else
+            ./gradlew --no-daemon assembleDebug
+          fi
+
+      - name: Collect outputs
+        run: |
+          mkdir -p out
+          V=$(node -p "require('./package.json').version")
+          if [ "$HAS_KEY" = "true" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/LearnGram-$V.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/LearnGram-$V.aab"
+          else
+            cp android/app/build/outputs/apk/debug/app-debug.apk "out/LearnGram-$V-debug.apk"
+          fi
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LearnGram-android
+          path: out/*
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" out/* --clobber

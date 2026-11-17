@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CATEGORIES } from '../data/categories';
-import { getState, update, type RecallMode } from '../lib/store';
+import { getState, requestPersistence, update, type RecallMode } from '../lib/store';
 
 const GOALS = [
   { v: 5, t: 'Casual', d: '5 facts a day · about 2 minutes' },
@@ -33,6 +33,7 @@ export function Onboarding() {
   const next = () => {
     if (step < last) return setStep(step + 1);
     update((s) => { s.name = name.trim(); s.interests = interests; s.goal = goal; s.recall = recall; s.explore = explore; s.onboarded = true; });
+    requestPersistence();
   };
 
   const choice = <T,>(opts: { v: T; t: string; d: string }[], cur: T, set: (v: T) => void) => (

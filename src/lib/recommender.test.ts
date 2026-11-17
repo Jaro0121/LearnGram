@@ -8,7 +8,7 @@ const seeded = (seed = 1) => () => { seed = (seed * 16807) % 2147483647; return 
 
 describe('content deck', () => {
   it('is well formed', () => {
-    expect(FACTS.length).toBe(100);
+    expect(FACTS.length).toBe(200);
     expect(new Set(FACTS.map((f) => f.id)).size).toBe(FACTS.length);
     for (const f of FACTS) {
       expect(CAT[f.cat], f.id).toBeTruthy();

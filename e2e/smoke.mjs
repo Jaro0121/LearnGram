@@ -1,24 +1,37 @@
-// End-to-end smoke test on a phone-sized viewport. Run `npm run build` first.
-// External APIs are mocked so the test is deterministic and works offline.
+// End-to-end test on a phone-sized viewport. Run `npm run build` first.
+// External APIs are mocked so the test is deterministic; LIVE=1 uses the real Wikipedia / Open Trivia DB.
+// STORE_SHOTS=1 also writes the app-store / manifest screenshots to public/screenshots.
 import { createRequire } from 'node:module';
 const { chromium, devices } = createRequire(import.meta.url)('playwright'); // npm i -D playwright, or a global install
 import { preview } from 'vite';
 import assert from 'node:assert/strict';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 
+const LIVE = !!process.env.LIVE;
+const STORE = !!process.env.STORE_SHOTS;
 const SHOTS = process.env.SHOTS;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
+const STORE_DIR = new URL('../public/screenshots/', import.meta.url).pathname;
+if (STORE) mkdirSync(STORE_DIR, { recursive: true });
+const STORE_NAMES = { '02-interests': 'interests', '05-after-like': 'feed', '07-recall': 'recall', '10-profile': 'profile' };
 const server = await preview({ preview: { port: 4317, strictPort: true }, logLevel: 'silent' });
 const url = 'http://localhost:4317/';
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ ...devices['Pixel 7'] });
+const ctx = await browser.newContext(STORE
+  ? { viewport: { width: 360, height: 740 }, deviceScaleFactor: 1.5, isMobile: true, hasTouch: true, userAgent: devices['Pixel 7'].userAgent, acceptDownloads: true }
+  : { ...devices['Pixel 7'], acceptDownloads: true });
 const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+page.on('console', (m) => {
+  // Offline reloads and real-API rate limits legitimately log failed requests.
+  if (m.type() === 'error' && !/Failed to load resource|net::ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(m.text());
+});
 
 let wikiCalls = 0;
-await ctx.route('https://en.wikipedia.org/**', (route) => {
+ctx.on('request', (r) => { if (LIVE && r.url().startsWith('https://en.wikipedia.org/')) wikiCalls++; });
+if (process.env.DEBUG) ctx.on('response', (r) => { if (/wikipedia\.org\/w\/api|opentdb/.test(r.url())) console.log('   ', r.status(), r.request().method(), r.url().slice(0, 60)); });
+if (!LIVE) await ctx.route('https://en.wikipedia.org/**', (route) => {
   wikiCalls++;
   const seed = decodeURIComponent(new URL(route.request().url()).searchParams.get('gsrsearch') ?? '');
   route.fulfill({ json: { query: { pages: [1, 2, 3].map((i) => ({
@@ -27,9 +40,12 @@ await ctx.route('https://en.wikipedia.org/**', (route) => {
     fullurl: 'https://en.wikipedia.org/wiki/Mock',
   })) } } });
 });
-await ctx.route('https://opentdb.com/**', (route) => route.fulfill({ json: { response_code: 0, results: [] } }));
+if (!LIVE) await ctx.route('https://opentdb.com/**', (route) => route.fulfill({ json: { response_code: 0, results: [] } }));
 
-const shot = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
+const shot = async (name) => {
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/${name}.png` });
+  if (STORE && STORE_NAMES[name]) await page.screenshot({ path: `${STORE_DIR}${STORE_NAMES[name]}.png` });
+};
 const step = (m) => console.log('•', m);
 const activeCard = () => page.evaluate(() => {
   const feed = [...document.querySelectorAll('[data-testid=feed]')].find((f) => f.offsetParent);
@@ -101,7 +117,8 @@ try {
 
   step('live Wikipedia cards join the feed');
   let sawLive = false;
-  for (let i = 0; i < 14 && !sawLive; i++) {
+  // The real Wikipedia API may rate-limit shared IPs, so LIVE mode gives it longer.
+  for (let i = 0; i < (LIVE ? 60 : 24) && !sawLive; i++) {
     await swipe();
     const c = await activeCard();
     if (c.kind === 'fact') await page.waitForTimeout(1300);
@@ -136,14 +153,18 @@ try {
   await shot('08-review');
   const n = Number(await page.getByTestId('due-count').innerText());
   assert.ok(n >= 1);
-  await page.getByRole('button', { name: 'Start review' }).click();
-  for (let i = 0; i < Math.min(n, 10); i++) {
-    assert.ok(await page.getByRole('button', { name: /^(Next|Finish)$/ }).isDisabled(), 'must answer first');
-    await page.locator('.review-run .opt').first().click();
-    await page.getByRole('button', { name: /^(Next|Finish)$/ }).click();
+  // Sessions hold up to 10 cards; keep going until nothing is due.
+  while (Number(await page.getByTestId('due-count').innerText()) > 0) {
+    const left = Number(await page.getByTestId('due-count').innerText());
+    await page.getByRole('button', { name: 'Start review' }).click();
+    for (let i = 0; i < Math.min(left, 10); i++) {
+      assert.ok(await page.getByRole('button', { name: /^(Next|Finish)$/ }).isDisabled(), 'must answer first');
+      await page.locator('.review-run .opt').first().click();
+      await page.getByRole('button', { name: /^(Next|Finish)$/ }).click();
+    }
+    await page.getByText('Session complete').waitFor();
+    await page.getByRole('button', { name: 'Done' }).click();
   }
-  await page.getByText('Session complete').waitFor();
-  await page.getByRole('button', { name: 'Done' }).click();
   assert.equal(await page.getByTestId('due-count').innerText(), '0');
 
   step('explore a category');
@@ -160,11 +181,48 @@ try {
   const learned = Number(await page.getByTestId('learned').innerText());
   assert.ok(learned >= 5, `facts learned shown (${learned})`);
   assert.ok((await page.getByTestId('top-tags').innerText()).includes('#'), 'liked tags listed');
-  await page.getByRole('button', { name: /Liked \(2\)/ }).waitFor();
+  await page.getByRole('tab', { name: /Liked \(2\)/ }).waitFor();
   await shot('10-profile');
   await page.reload();
   await page.getByRole('button', { name: 'Profile' }).click();
   assert.equal(Number(await page.getByTestId('learned').innerText()), learned);
+
+  step('backup download and restore');
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download backup' }).click()]);
+  const backupPath = await dl.path();
+  const backup = JSON.parse(readFileSync(backupPath, 'utf8'));
+  assert.equal(backup.app, 'LearnGram');
+  assert.equal(Object.keys(backup.state.seen).length, learned);
+  page.once('dialog', (d) => d.accept());
+  await page.getByRole('button', { name: 'Reset everything' }).click();
+  await page.getByText('Welcome to LearnGram').waitFor();
+  await page.evaluate((b) => localStorage.setItem('learngram:v1', JSON.stringify(b.state)), backup);
+  await page.reload();
+  await page.getByRole('button', { name: 'Profile' }).click();
+  await page.getByText('Hi, Sam').waitFor();
+  await page.locator('input[type=file]').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"nope":1}') });
+  await page.getByText('That file is not a LearnGram backup.').waitFor();
+  await page.locator('input[type=file]').setInputFiles(backupPath);
+  await page.getByText('Backup restored').waitFor();
+  assert.equal(Number(await page.getByTestId('learned').innerText()), learned);
+
+  step('privacy policy and review shortcut');
+  const priv = await ctx.request.get(url + 'privacy.html');
+  assert.equal(priv.status(), 200);
+  assert.match(await priv.text(), /no tracking/);
+  await page.goto(url + '?tab=review');
+  await page.getByTestId('due-count').waitFor();
+
+  step('works offline after the first visit');
+  await page.goto(url);
+  await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 15000 }).catch(async () => {
+    await page.reload();
+    await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 15000 });
+  });
+  await ctx.setOffline(true);
+  await page.reload();
+  await page.waitForSelector('.card h2');
+  await ctx.setOffline(false);
 
   step('no horizontal overflow, no console errors');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));

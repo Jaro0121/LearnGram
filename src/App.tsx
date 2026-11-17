@@ -7,6 +7,7 @@ import { Profile } from './components/Profile';
 import { Review } from './components/Review';
 import { dueFacts } from './lib/feed';
 import { useStore } from './lib/store';
+import { onBackButton } from './lib/native';
 import { onToast } from './lib/toast';
 
 type Tab = 'feed' | 'explore' | 'review' | 'profile';
@@ -19,7 +20,10 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 
 export default function App() {
   const s = useStore();
-  const [tab, setTab] = useState<Tab>('feed');
+  const [tab, setTab] = useState<Tab>(() => {
+    const t = new URLSearchParams(location.search).get('tab');
+    return TABS.some((x) => x.id === t) ? (t as Tab) : 'feed';
+  });
   const [cat, setCat] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [msg, setMsg] = useState('');
@@ -31,6 +35,14 @@ export default function App() {
     const off = onToast((m) => { setMsg(m); clearTimeout(t); t = setTimeout(() => setMsg(''), 1800); });
     return () => { off(); clearTimeout(t); };
   }, []);
+
+  // Android back button: leave a category → go to the feed → exit the app.
+  const nav = { tab, cat };
+  useEffect(() => onBackButton(() => {
+    if (nav.tab === 'explore' && nav.cat) { setCat(null); return true; }
+    if (nav.tab !== 'feed') { setTab('feed'); return true; }
+    return false;
+  }));
 
   if (!s.onboarded) return <div className="app"><Onboarding /></div>;
 

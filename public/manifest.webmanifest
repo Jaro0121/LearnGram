@@ -1,7 +1,7 @@
 {
   "name": "LearnGram",
   "short_name": "LearnGram",
-  "description": "Swipe through facts that actually stick.",
+  "description": "Swipe through short facts like a video feed — and actually remember them, thanks to spaced recall.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
@@ -9,7 +9,80 @@
   "background_color": "#0b0b12",
   "theme_color": "#0b0b12",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "id": "./",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "education",
+    "books",
+    "entertainment"
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/feed.png",
+      "sizes": "540x1110",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "The learning feed"
+    },
+    {
+      "src": "screenshots/recall.png",
+      "sizes": "540x1110",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Spaced recall questions"
+    },
+    {
+      "src": "screenshots/interests.png",
+      "sizes": "540x1110",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Pick your interests"
+    },
+    {
+      "src": "screenshots/profile.png",
+      "sizes": "540x1110",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Your progress"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Review",
+      "short_name": "Review",
+      "url": "./?tab=review",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

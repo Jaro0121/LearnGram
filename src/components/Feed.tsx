@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CAT } from '../data/categories';
-import { dwell, markSeen } from '../lib/actions';
+import { currentStreak, dayKey, dwell, markSeen } from '../lib/actions';
 import { buildBatch } from '../lib/feed';
 import { getState, useStore } from '../lib/store';
 import type { Item } from '../lib/types';
@@ -73,7 +73,7 @@ export function Feed({ filter = null, visible = true, onBack }: { filter?: strin
     return () => window.removeEventListener('keydown', onKey);
   }, [visible]);
 
-  const done = Math.min(s.day.count, s.goal);
+  const done = Math.min(s.day.date === dayKey() ? s.day.count : 0, s.goal);
   const pct = Math.round((done / s.goal) * 100);
 
   return (
@@ -83,12 +83,12 @@ export function Feed({ filter = null, visible = true, onBack }: { filter?: strin
           ? <button className="back" onClick={onBack} aria-label="Back"><Icon name="back" size={22} />{filter ? CAT[filter]?.name : ''}</button>
           : <span className="brand">LearnGram</span>}
         <div className="goal" title="Today's goal" data-testid="goal">
-          <span>🔥 {s.streak.count}</span>
+          <span aria-label={`${currentStreak(s)} day streak`}>🔥 {currentStreak(s)}</span>
           <div className="goal-bar"><i style={{ width: pct + '%' }} /></div>
           <span>{done}/{s.goal}{done >= s.goal ? ' ✓' : ''}</span>
         </div>
       </header>
-      <div className="feed" ref={ref} data-testid="feed">
+      <div className="feed" ref={ref} data-testid="feed" role="feed" aria-label="Facts feed">
         {items.map((it, i) =>
           it.kind === 'fact' ? <FactCard key={it.key} fact={it.fact} why={it.why} index={i} onLiked={onLiked} onNext={onNext} />
             : it.kind === 'review' ? <ReviewCard key={it.key} fact={it.fact} index={i} />

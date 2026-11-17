@@ -11,12 +11,18 @@ import { CAT } from '../data/categories';
 import type { Fact, Trivia } from './types';
 
 const TIMEOUT = 8000;
+/** Back off from a host after it answers 429 (too many requests). */
+const backoff: Record<string, number> = {};
+const JUNK = /^(List|Lists|Outline|Index|Glossary|Timeline) of |\(disambiguation\)/i;
 
-async function getJSON(url: string): Promise<any> {
+async function getJSON(url: string, headers?: Record<string, string>): Promise<any> {
+  const host = new URL(url).host;
+  if ((backoff[host] ?? 0) > Date.now()) throw new Error('backoff');
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT);
   try {
-    const res = await fetch(url, { signal: ctl.signal });
+    const res = await fetch(url, { signal: ctl.signal, headers });
+    if (res.status === 429) backoff[host] = Date.now() + 30_000;
     if (!res.ok) throw new Error(String(res.status));
     return await res.json();
   } finally {
@@ -37,7 +43,7 @@ export function parseWiki(json: any, cat: string, tags: string[]): Fact[] {
   return pages
     .slice()
     .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
-    .filter((p) => typeof p.extract === 'string' && p.extract.length >= 80 && !/may refer to/i.test(p.extract) && !/^List of/i.test(p.title))
+    .filter((p) => typeof p.extract === 'string' && p.extract.length >= 80 && !/may refer to/i.test(p.extract) && !JUNK.test(p.title))
     .map((p) => ({
       id: `w:${p.pageid}`,
       cat,
@@ -56,11 +62,13 @@ export async function fetchSimilar(seed: Fact): Promise<Fact[]> {
   const url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*'
     + `&generator=search&gsrsearch=${encodeURIComponent('morelike:' + title)}&gsrlimit=8&gsrnamespace=0`
     + '&prop=extracts%7Cpageimages%7Cinfo&exintro=1&explaintext=1&exlimit=max&piprop=thumbnail&pithumbsize=800&inprop=url';
-  return parseWiki(await getJSON(url), seed.cat, seed.tags.slice(0, 2));
+  // Wikimedia asks API clients to identify themselves; browsers may not change User-Agent, so this header is the official alternative.
+  return parseWiki(await getJSON(url, { 'Api-User-Agent': 'LearnGram/1.0 (educational learning app)' }), seed.cat, seed.tags.slice(0, 2));
 }
 
 export function parseTrivia(json: any, cat: string): Trivia[] {
   const dec = (s: string) => { try { return decodeURIComponent(s); } catch { return s; } };
+  if (json?.response_code !== 0) return [];
   const rs: any[] = json?.results ?? [];
   return rs
     .filter((r) => r.type === 'multiple' && Array.isArray(r.incorrect_answers) && r.incorrect_answers.length === 3)
@@ -90,7 +98,8 @@ export async function refill(seeds: Fact[], cats: string[], known: (id: string) 
       const seed = seeds.find((s) => !usedSeeds.has(s.id));
       if (seed) {
         usedSeeds.add(seed.id);
-        const got = await fetchSimilar(seed).catch(() => []);
+        // On failure (offline, rate-limited) give the seed back so it is retried later.
+        const got = await fetchSimilar(seed).catch(() => { usedSeeds.delete(seed.id); return [] as Fact[]; });
         for (const g of got) if (!known(g.id) && !pool.facts.some((x) => x.id === g.id)) pool.facts.push(g);
       }
     }
@@ -100,7 +109,7 @@ export async function refill(seeds: Fact[], cats: string[], known: (id: string) 
       const cat = cats.find((c) => CAT[c]?.trivia && now - (usedTriviaCats.get(c) ?? 0) > 120_000);
       if (cat) {
         usedTriviaCats.set(cat, now);
-        const got = await fetchTrivia(cat).catch(() => []);
+        const got = await fetchTrivia(cat).catch(() => { usedTriviaCats.delete(cat); return [] as Trivia[]; });
         for (const g of got) if (!known(g.id) && !pool.trivia.some((x) => x.id === g.id)) pool.trivia.push(g);
       }
     }

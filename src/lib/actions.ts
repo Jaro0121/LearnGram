@@ -2,6 +2,8 @@ import { FACT_BY_ID } from '../data/facts';
 import { applySignal, SIGNAL } from './recommender';
 import { initMem, review, DAY } from './srs';
 import { getState, update } from './store';
+import { toast } from './toast';
+import { haptic } from './native';
 import type { Fact } from './types';
 
 export const dayKey = (t: number = Date.now()): string => {
@@ -10,12 +12,19 @@ export const dayKey = (t: number = Date.now()): string => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+/** Streak as it stands today: it only survives if you learned something today or yesterday. */
+export function currentStreak(s: { streak: { last: string; count: number } }, now: number = Date.now()): number {
+  return s.streak.last === dayKey(now) || s.streak.last === dayKey(now - DAY) ? s.streak.count : 0;
+}
+
+export const buzz = (ms: number | number[] = 12) => haptic(ms);
+
 export const getFact = (id: string): Fact | undefined => FACT_BY_ID[id] ?? getState().kept[id];
 
 export function toggleLike(fact: Fact): void {
   update((s) => {
     if (s.liked[fact.id]) { delete s.liked[fact.id]; applySignal(s, fact, SIGNAL.unlike); }
-    else { s.liked[fact.id] = Date.now(); applySignal(s, fact, SIGNAL.like); if (fact.live) s.kept[fact.id] = fact; }
+    else { s.liked[fact.id] = Date.now(); applySignal(s, fact, SIGNAL.like); if (fact.live) s.kept[fact.id] = fact; buzz(); }
   });
 }
 
@@ -49,12 +58,15 @@ function bumpDay(s: ReturnType<typeof getState>, now: number): void {
 export function markSeen(fact: Fact): void {
   if (getState().seen[fact.id]) return;
   const now = Date.now();
+  let hitGoal = false;
   update((s) => {
     s.seen[fact.id] = now;
     s.xp += 5;
     if (fact.quiz) s.mem[fact.id] = initMem(now);
     bumpDay(s, now);
+    hitGoal = s.day.count === s.goal;
   });
+  if (hitGoal) { toast('🎉 Daily goal reached!'); buzz([20, 60, 20]); }
 }
 
 /** Returns the time until the next review, in ms. */
@@ -68,6 +80,7 @@ export function answerReview(fact: Fact, correct: boolean): number {
     if (correct) { s.quiz.right += 1; s.xp += 10; applySignal(s, fact, SIGNAL.correct); }
     else s.quiz.wrong += 1;
   });
+  buzz(correct ? 12 : [30, 40, 30]);
   return gap;
 }
 
@@ -75,4 +88,5 @@ export function answerTrivia(correct: boolean): void {
   update((s) => {
     if (correct) { s.quiz.right += 1; s.xp += 10; } else s.quiz.wrong += 1;
   });
+  buzz(correct ? 12 : [30, 40, 30]);
 }

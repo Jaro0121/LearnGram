@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { CAT } from '../data/categories';
 import { answerReview, answerTrivia, showLess, toggleLike, toggleSave } from '../lib/actions';
 import { fmtInterval } from '../lib/srs';
@@ -7,6 +7,7 @@ import { toast } from '../lib/toast';
 import type { Fact, Trivia } from '../lib/types';
 import { Icon } from './Icon';
 import { Quiz } from './Quiz';
+import { openExternal, shareText } from '../lib/native';
 
 const bg = (cat: string) => ({ '--from': CAT[cat]?.from ?? '#222', '--to': CAT[cat]?.to ?? '#555' }) as CSSProperties;
 export const factUrl = (f: Fact) => f.url ?? (f.wiki ? `https://en.wikipedia.org/wiki/${encodeURIComponent(f.wiki.replace(/ /g, '_'))}` : undefined);
@@ -14,8 +15,10 @@ export const factUrl = (f: Fact) => f.url ?? (f.wiki ? `https://en.wikipedia.org
 async function share(f: Fact) {
   const text = `${f.title} — ${f.text}`;
   try {
-    if (navigator.share) await navigator.share({ title: 'LearnGram', text, url: factUrl(f) });
-    else { await navigator.clipboard.writeText(text); toast('Copied to clipboard'); }
+    if (!(await shareText('LearnGram', text, factUrl(f)))) {
+      await navigator.clipboard.writeText(`${text}\n${factUrl(f) ?? ''}`.trim());
+      toast('Copied to clipboard');
+    }
   } catch { /* user cancelled */ }
 }
 
@@ -29,6 +32,15 @@ export function FactCard({ fact, why, index, onLiked, onNext }: {
   const lastTap = useRef(0);
   const c = CAT[fact.cat];
   const url = factUrl(fact);
+  // Only use the article photo once it has actually loaded; otherwise keep the emoji design.
+  const [img, setImg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fact.img) return;
+    const im = new Image();
+    im.onload = () => setImg(fact.img!);
+    im.src = fact.img;
+    return () => { im.onload = null; };
+  }, [fact.img]);
 
   const like = () => { toggleLike(fact); if (!liked) onLiked(); };
   const onTap = (e: MouseEvent) => {
@@ -42,8 +54,8 @@ export function FactCard({ fact, why, index, onLiked, onNext }: {
   };
 
   return (
-    <section className={'card' + (fact.img ? ' has-img' : '')} data-i={index} data-id={fact.id} data-cat={fact.cat} style={bg(fact.cat)} onClick={onTap}>
-      {fact.img && <div className="card-img" style={{ backgroundImage: `url("${fact.img}")` }} />}
+    <section className={'card' + (img ? ' has-img' : '')} data-i={index} data-id={fact.id} data-cat={fact.cat} style={bg(fact.cat)} onClick={onTap}>
+      {img && <div className="card-img" style={{ backgroundImage: `url("${img}")` }} />}
       <div className="card-emoji" aria-hidden="true">{c?.emoji}</div>
       <div className="card-body">
         <span className="chip">{c?.emoji} {c?.name}{fact.live && <em> · Wikipedia</em>}</span>
@@ -51,7 +63,7 @@ export function FactCard({ fact, why, index, onLiked, onNext }: {
         <p>{fact.text}</p>
         <div className="tags">{fact.tags.slice(0, 4).map((t) => <span key={t}>#{t}</span>)}</div>
         <div className="why">✨ {why}</div>
-        {url && <a className="more" href={url} target="_blank" rel="noreferrer">Learn more ↗</a>}
+        {url && <a className="more" href={url} target="_blank" rel="noreferrer" onClick={(e) => { e.preventDefault(); void openExternal(url); }}>Learn more ↗</a>}
       </div>
       <div className="rail">
         <button className={'act' + (liked ? ' on-like' : '')} aria-label="Like" aria-pressed={liked} onClick={like}>
