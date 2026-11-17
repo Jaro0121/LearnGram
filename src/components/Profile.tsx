@@ -55,7 +55,7 @@ export function Profile({ now }: { now: number }) {
       </div>
 
       <div className="panel">
-        <h3>Your feed is tuned to</h3>
+        <h2 className="h3">Your feed is tuned to</h2>
         {cats.map(({ c, v }) => (
           <div className="bar-row" key={c.id}>
             <span>{c.emoji} {c.name}</span>
@@ -87,7 +87,7 @@ export function Profile({ now }: { now: number }) {
       </div>
 
       <div className="panel">
-        <h3>Settings</h3>
+        <h2 className="h3">Settings</h2>
         <label className="toggle">
           <span>Live content<small>Pull extra cards from Wikipedia and Open Trivia DB when online</small></span>
           <input type="checkbox" checked={s.live} onChange={(e) => update((x) => { x.live = e.target.checked; })} />
@@ -96,7 +96,7 @@ export function Profile({ now }: { now: number }) {
       </div>
 
       <div className="panel">
-        <h3>Your data</h3>
+        <h2 className="h3">Your data</h2>
         <p className="muted" style={{ marginTop: 0 }}>Everything is stored only on this device. Make a backup before switching phones or clearing your browser.</p>
         <button className="btn ghost" onClick={() => {
           saveTextFile(`learngram-backup-${new Date().toISOString().slice(0, 10)}.json`, exportBackup())
@@ -109,7 +109,7 @@ export function Profile({ now }: { now: number }) {
       </div>
 
       <div className="panel about">
-        <h3>About</h3>
+        <h2 className="h3">About</h2>
         <p className="muted" style={{ marginTop: 0 }}>LearnGram {__APP_VERSION__}. No account, no ads, no tracking.</p>
         <p className="muted">Live text from Wikipedia (CC BY-SA 4.0) · trivia from Open Trivia DB (CC BY-SA 4.0).</p>
         <button className="btn ghost" onClick={() => void openExternal(isNative ? PRIVACY_URL : new URL('privacy.html', location.href).href)}>Privacy policy</button>

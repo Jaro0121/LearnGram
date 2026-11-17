@@ -93,7 +93,7 @@ export function Feed({ filter = null, visible = true, onBack }: { filter?: strin
           it.kind === 'fact' ? <FactCard key={it.key} fact={it.fact} why={it.why} index={i} onLiked={onLiked} onNext={onNext} />
             : it.kind === 'review' ? <ReviewCard key={it.key} fact={it.fact} index={i} />
               : <TriviaCard key={it.key} trivia={it.trivia} index={i} />)}
-        {items.length === 0 && <section className="card empty"><div className="card-body"><h2>Nothing here yet</h2><p>Try another category.</p></div></section>}
+        {items.length === 0 && <article className="card empty"><div className="card-body"><h2>Nothing here yet</h2><p>Try another category.</p></div></article>}
       </div>
       {active === 0 && items.length > 1 && <div className="hint" aria-hidden="true">Swipe up · double-tap to like</div>}
     </div>

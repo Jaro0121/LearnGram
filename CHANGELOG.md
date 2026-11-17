@@ -13,3 +13,4 @@
 - Offline support and auto-update (service worker), installable PWA with maskable icon and screenshots
 - Android app (Capacitor): share sheet, in-app browser, haptics, hardware back button, edge-to-edge safe areas
 - Privacy policy (no accounts, no tracking)
+- Accessibility: pinch-zoom allowed, semantic feed/landmarks/headings, no axe violations; Lighthouse performance 100

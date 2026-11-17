@@ -54,7 +54,7 @@ export function FactCard({ fact, why, index, onLiked, onNext }: {
   };
 
   return (
-    <section className={'card' + (img ? ' has-img' : '')} data-i={index} data-id={fact.id} data-cat={fact.cat} style={bg(fact.cat)} onClick={onTap}>
+    <article aria-label={fact.title} className={'card' + (img ? ' has-img' : '')} data-i={index} data-id={fact.id} data-cat={fact.cat} style={bg(fact.cat)} onClick={onTap}>
       {img && <div className="card-img" style={{ backgroundImage: `url("${img}")` }} />}
       <div className="card-emoji" aria-hidden="true">{c?.emoji}</div>
       <div className="card-body">
@@ -82,7 +82,7 @@ export function FactCard({ fact, why, index, onLiked, onNext }: {
         </button>
       </div>
       {burst > 0 && <div key={burst} className="burst" aria-hidden="true"><Icon name="heart" filled size={120} /></div>}
-    </section>
+    </article>
   );
 }
 
@@ -91,7 +91,7 @@ export function ReviewCard({ fact, index, inFeed = true, onAnswered }: { fact: F
   const c = CAT[fact.cat];
   if (!fact.quiz) return null;
   return (
-    <section className={'card quiz-card' + (inFeed ? '' : ' solo')} data-i={index} data-kind="review" data-id={fact.id} style={bg(fact.cat)}>
+    <article aria-label="Quick recall question" className={'card quiz-card' + (inFeed ? '' : ' solo')} data-i={index} data-kind="review" data-id={fact.id} style={bg(fact.cat)}>
       <div className="card-body">
         <span className="chip">🧠 Quick recall · {c?.name}</span>
         <Quiz q={fact.quiz.q} options={fact.quiz.options} onAnswer={(ok) => { setRes({ ok, gap: answerReview(fact, ok) }); onAnswered?.(); }} />
@@ -103,7 +103,7 @@ export function ReviewCard({ fact, index, inFeed = true, onAnswered }: { fact: F
           </div>
         )}
       </div>
-    </section>
+    </article>
   );
 }
 
@@ -111,7 +111,7 @@ export function TriviaCard({ trivia, index }: { trivia: Trivia; index: number })
   const [ok, setOk] = useState<boolean | null>(null);
   const c = CAT[trivia.cat];
   return (
-    <section className="card quiz-card" data-i={index} data-kind="trivia" style={bg(trivia.cat)}>
+    <article aria-label="Trivia question" className="card quiz-card" data-i={index} data-kind="trivia" style={bg(trivia.cat)}>
       <div className="card-body">
         <span className="chip">🎯 Trivia challenge · {c?.name}</span>
         <Quiz q={trivia.q} options={trivia.options} onAnswer={(r) => { setOk(r); answerTrivia(r); }} />
@@ -122,6 +122,6 @@ export function TriviaCard({ trivia, index }: { trivia: Trivia; index: number })
           </div>
         )}
       </div>
-    </section>
+    </article>
   );
 }

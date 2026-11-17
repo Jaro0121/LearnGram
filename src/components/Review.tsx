@@ -61,7 +61,7 @@ export function Review({ now }: { now: number }) {
             : <small>Read a few facts in your feed first.</small>}
       </div>
       <div className="panel">
-        <h3>How it works</h3>
+        <h2 className="h3">How it works</h2>
         <Curve />
         <p className="muted">Without review, memory of a new fact fades fast (grey). Each successful recall resets it and makes it fade more slowly (colour), so reviews get further apart: minutes → 1 day → a few days → weeks → months.</p>
       </div>

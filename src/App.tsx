@@ -44,11 +44,12 @@ export default function App() {
     return false;
   }));
 
-  if (!s.onboarded) return <div className="app"><Onboarding /></div>;
+  if (!s.onboarded) return <div className="app"><main className="onb-wrap"><Onboarding /></main></div>;
 
   const due = dueFacts(s, now).length;
   return (
     <div className="app">
+      <main>
       {/* The main feed stays mounted so you return to the same card. */}
       <div className="screen" hidden={tab !== 'feed'}><Feed visible={tab === 'feed'} /></div>
       {tab === 'explore' && (cat
@@ -56,6 +57,7 @@ export default function App() {
         : <div className="screen scroll"><Explore onOpen={setCat} /></div>)}
       {tab === 'review' && <div className="screen scroll"><Review now={now} /></div>}
       {tab === 'profile' && <div className="screen scroll"><Profile now={now} /></div>}
+      </main>
 
       <nav className="nav">
         {TABS.map((t) => (
